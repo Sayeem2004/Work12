@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#define LEN 256
 
 int print_size(long long sz) {
     // Initializations
@@ -24,12 +25,23 @@ int print_size(long long sz) {
     printf("%3d%s ", sz, pre[i]);
 }
 
-void get_file_info(struct dirent *curr, long long *sz) {
+void get_file_info(struct dirent *curr, long long *sz, char *cwdname) {
+    // Combining Paths
+    char path[LEN*2];
+    int i = 0, q;
+    while (i < LEN*2 && cwdname[i])
+        path[i++] = cwdname[i];
+    path[i++] = '/';
+    char *fname = curr->d_name;
+    while (i < LEN*2 && fname[q])
+        path[i++] = fname[q++];
+    path[i] = '\0';
+
     // Getting Info
     struct stat info;
-    int err = stat(curr->d_name, &info);
+    int err = stat(path, &info);
     if (err == -1) {
-        printf("Error Found While Getting Info Of %s, More Info Below\n", curr->d_name);
+        printf("Error Found While Getting Info Of \"%s\", More Info Below\n", path);
         printf("%s\n", strerror(errno));
         return;
     }
@@ -76,11 +88,24 @@ void get_file_info(struct dirent *curr, long long *sz) {
     printf("\n");
 }
 
-int main() {
-    // Opening Current Working Directory
-    DIR *cwd = opendir(".");
+int main(int argc, char* argv[]) {
+    // Getting Path Of A Directory
+    char cwdname[LEN];
+    if (argc == 1) {
+        printf("Enter The Path Of A Directory: ");
+        fgets(cwdname, LEN, stdin);
+        *strchr(cwdname, '\n') = '\0';
+    } else if (argc == 2) {
+        strncpy(cwdname, argv[1], LEN-1);
+    } else {
+        printf("FYI, This Program Only Looks At The First Command Line Argument Given\n");
+        strncpy(cwdname, argv[1], LEN-1);
+    }
+
+    // Opening Directory
+    DIR *cwd = opendir(cwdname);
     if (!cwd) {
-        printf("Error Found While Opening Current Working Directory, More Info Below\n");
+        printf("Error Found While Opening Current Working Directory \"%s\", More Info Below\n", cwdname);
         printf("%s\n", strerror(errno));
         return 0;
     }
@@ -91,7 +116,7 @@ int main() {
 
     // Getting File Info
     while (curr) {
-        get_file_info(curr, &sz);
+        get_file_info(curr, &sz, cwdname);
         curr = readdir(cwd);
     }
     closedir(cwd);
